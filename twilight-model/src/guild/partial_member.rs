@@ -29,6 +29,7 @@ pub struct PartialMember {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub premium_since: Option<Timestamp>,
     pub roles: Vec<Id<RoleMarker>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
 }
 
