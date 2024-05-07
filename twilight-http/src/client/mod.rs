@@ -4,14 +4,6 @@ mod interaction;
 
 pub use self::{builder::ClientBuilder, interaction::InteractionClient};
 
-use crate::request::{
-    guild::{
-        update_guild_onboarding::{UpdateGuildOnboarding, UpdateGuildOnboardingFields},
-        GetGuildOnboarding,
-    },
-    GetCurrentAuthorizationInformation, UpdateCurrentUserApplication,
-};
-#[allow(deprecated)]
 use crate::{
     client::connector::Connector,
     error::{Error, ErrorType},
@@ -49,7 +41,6 @@ use crate::{
                 GetGuildAutoModerationRules, UpdateAutoModerationRule,
             },
             ban::{CreateBan, DeleteBan, GetBan, GetBans},
-            create_guild::CreateGuildError,
             emoji::{CreateEmoji, DeleteEmoji, GetEmoji, GetEmojis, UpdateEmoji},
             integration::{DeleteGuildIntegration, GetGuildIntegrations},
             member::{
@@ -61,14 +52,14 @@ use crate::{
                 CreateGuildSticker, DeleteGuildSticker, GetGuildSticker, GetGuildStickers,
                 UpdateGuildSticker,
             },
-            update_guild_channel_positions::Position,
+            update_guild_onboarding::{UpdateGuildOnboarding, UpdateGuildOnboardingFields},
             user::{UpdateCurrentUserVoiceState, UpdateUserVoiceState},
             CreateGuild, CreateGuildChannel, CreateGuildPrune, DeleteGuild, GetActiveThreads,
-            GetAuditLog, GetGuild, GetGuildChannels, GetGuildInvites, GetGuildPreview,
-            GetGuildPruneCount, GetGuildVanityUrl, GetGuildVoiceRegions, GetGuildWebhooks,
-            GetGuildWelcomeScreen, GetGuildWidget, GetGuildWidgetSettings, UpdateCurrentMember,
-            UpdateGuild, UpdateGuildChannelPositions, UpdateGuildMfa, UpdateGuildWelcomeScreen,
-            UpdateGuildWidgetSettings,
+            GetAuditLog, GetGuild, GetGuildChannels, GetGuildInvites, GetGuildOnboarding,
+            GetGuildPreview, GetGuildPruneCount, GetGuildVanityUrl, GetGuildVoiceRegions,
+            GetGuildWebhooks, GetGuildWelcomeScreen, GetGuildWidget, GetGuildWidgetSettings,
+            UpdateCurrentMember, UpdateGuild, UpdateGuildChannelPositions, UpdateGuildMfa,
+            UpdateGuildWelcomeScreen, UpdateGuildWidgetSettings,
         },
         scheduled_event::{
             CreateGuildScheduledEvent, DeleteGuildScheduledEvent, GetGuildScheduledEvent,
@@ -84,16 +75,18 @@ use crate::{
             GetCurrentUserGuildMember, GetCurrentUserGuilds, GetUser, LeaveGuild,
             UpdateCurrentUser,
         },
-        GetGateway, GetUserApplicationInfo, GetVoiceRegions, Method, Request,
+        GetCurrentAuthorizationInformation, GetGateway, GetUserApplicationInfo, GetVoiceRegions,
+        Method, Request, UpdateCurrentUserApplication,
     },
     response::ResponseFuture,
     API_VERSION,
 };
-use hyper::{
-    client::Client as HyperClient,
-    header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT},
-    Body,
+use http::header::{
+    HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_LENGTH, CONTENT_TYPE, USER_AGENT,
 };
+use http_body_util::Full;
+use hyper::body::Bytes;
+use hyper_util::client::legacy::Client as HyperClient;
 use std::{
     fmt::{Debug, Formatter, Result as FmtResult},
     ops::Deref,
@@ -108,7 +101,7 @@ use twilight_http_ratelimiting::Ratelimiter;
 use twilight_model::{
     channel::{message::AllowedMentions, ChannelType},
     guild::{auto_moderation::AutoModerationEventType, scheduled_event::PrivacyLevel, MfaLevel},
-    http::permission_overwrite::PermissionOverwrite,
+    http::{channel_position::Position, permission_overwrite::PermissionOverwrite},
     id::{
         marker::{
             ApplicationMarker, AutoModerationRuleMarker, ChannelMarker, EmojiMarker, GuildMarker,
@@ -117,9 +110,6 @@ use twilight_model::{
         },
         Id,
     },
-};
-use twilight_validate::{
-    channel::ChannelValidationError, request::ValidationError, sticker::StickerValidationError,
 };
 
 const TWILIGHT_USER_AGENT: &str = concat!(
@@ -169,7 +159,7 @@ impl Deref for Token {
 /// HTTP interaction requests may be accessed via the [`Client::interaction`]
 /// method.
 ///
-/// # OAuth
+/// # OAuth2
 ///
 /// To use Bearer tokens prefix the token with `"Bearer "`, including the space
 /// at the end like so:
@@ -234,7 +224,7 @@ impl Deref for Token {
 pub struct Client {
     pub(crate) default_allowed_mentions: Option<AllowedMentions>,
     default_headers: Option<HeaderMap>,
-    http: HyperClient<Connector>,
+    http: HyperClient<Connector, Full<Bytes>>,
     proxy: Option<Box<str>>,
     ratelimiter: Option<Box<dyn Ratelimiter>>,
     timeout: Duration,
@@ -372,7 +362,7 @@ impl Client {
     ///     .create_auto_moderation_rule(guild_id, "no darns", AutoModerationEventType::MessageSend)
     ///     .action_block_message()
     ///     .enabled(true)
-    ///     .with_keyword(&["darn"])
+    ///     .with_keyword(&["darn"], &["d(?:4|a)rn"], &["darn it"])
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -482,8 +472,8 @@ impl Client {
     /// let user_id = Id::new(200);
     /// client
     ///     .create_ban(guild_id, user_id)
-    ///     .delete_message_seconds(86_400)?
-    ///     .reason("memes")?
+    ///     .delete_message_seconds(86_400)
+    ///     .reason("memes")
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -602,7 +592,7 @@ impl Client {
     /// let messages = client
     ///     .channel_messages(channel_id)
     ///     .before(message_id)
-    ///     .limit(limit)?
+    ///     .limit(limit)
     ///     .await?;
     ///
     /// # Ok(()) }
@@ -688,7 +678,7 @@ impl Client {
         GetCurrentUserGuildMember::new(self, guild_id)
     }
 
-    /// Get information about the current OAuth authorization.
+    /// Get information about the current OAuth2 authorization.
     pub const fn current_authorization(&self) -> GetCurrentAuthorizationInformation<'_> {
         GetCurrentAuthorizationInformation::new(self)
     }
@@ -754,7 +744,7 @@ impl Client {
     ///     .current_user_guilds()
     ///     .after(after)
     ///     .before(before)
-    ///     .limit(25)?
+    ///     .limit(25)
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -901,7 +891,7 @@ impl Client {
     /// length is too short or too long.
     ///
     /// [`CreateGuildErrorType::NameInvalid`]: crate::request::guild::create_guild::CreateGuildErrorType::NameInvalid
-    pub fn create_guild(&self, name: String) -> Result<CreateGuild<'_>, CreateGuildError> {
+    pub fn create_guild(&self, name: String) -> CreateGuild<'_> {
         CreateGuild::new(self, name)
     }
 
@@ -952,7 +942,7 @@ impl Client {
         &'a self,
         guild_id: Id<GuildMarker>,
         name: &'a str,
-    ) -> Result<CreateGuildChannel<'a>, ChannelValidationError> {
+    ) -> CreateGuildChannel<'a> {
         CreateGuildChannel::new(self, guild_id, name)
     }
 
@@ -968,9 +958,6 @@ impl Client {
     /// Modify the positions of the channels.
     ///
     /// The minimum amount of channels to modify, is a swap between two channels.
-    ///
-    /// This function accepts an `Iterator` of `(Id<ChannelMarker>, u64)`. It also
-    /// accepts an `Iterator` of `Position`, which has extra fields.
     pub const fn update_guild_channel_positions<'a>(
         &'a self,
         guild_id: Id<GuildMarker>,
@@ -1066,7 +1053,7 @@ impl Client {
     /// let members = client
     ///     .guild_members(guild_id)
     ///     .after(user_id)
-    ///     .limit(500)?
+    ///     .limit(500)
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -1100,7 +1087,7 @@ impl Client {
     /// let guild_id = Id::new(100);
     /// let members = client
     ///     .search_guild_members(guild_id, "Wumpus")
-    ///     .limit(10)?
+    ///     .limit(10)
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -1177,7 +1164,7 @@ impl Client {
     /// let member = client
     ///     .update_guild_member(Id::new(1), Id::new(2))
     ///     .mute(true)
-    ///     .nick(Some("pinkie pie"))?
+    ///     .nick(Some("pinkie pie"))
     ///     .await?
     ///     .model()
     ///     .await?;
@@ -1232,7 +1219,7 @@ impl Client {
     ///
     /// client
     ///     .add_guild_member_role(guild_id, user_id, role_id)
-    ///     .reason("test")?
+    ///     .reason("test")
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -1363,7 +1350,7 @@ impl Client {
     /// # let client = Client::new("my token".to_owned());
     /// #
     /// let channel_id = Id::new(123);
-    /// let invite = client.create_invite(channel_id).max_uses(3)?.await?;
+    /// let invite = client.create_invite(channel_id).max_uses(3).await?;
     /// # Ok(()) }
     /// ```
     ///
@@ -1409,7 +1396,7 @@ impl Client {
     /// let channel_id = Id::new(123);
     /// let message = client
     ///     .create_message(channel_id)
-    ///     .content("Twilight is best pony")?
+    ///     .content("Twilight is best pony")
     ///     .tts(true)
     ///     .await?;
     /// # Ok(()) }
@@ -1452,7 +1439,7 @@ impl Client {
         &'a self,
         channel_id: Id<ChannelMarker>,
         message_ids: &'a [Id<MessageMarker>],
-    ) -> Result<DeleteMessages<'a>, ChannelValidationError> {
+    ) -> DeleteMessages<'a> {
         DeleteMessages::new(self, channel_id, message_ids)
     }
 
@@ -1475,7 +1462,7 @@ impl Client {
     /// let client = Client::new("my token".to_owned());
     /// client
     ///     .update_message(Id::new(1), Id::new(2))
-    ///     .content(Some("test update"))?
+    ///     .content(Some("test update"))
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -1491,7 +1478,7 @@ impl Client {
     /// # let client = Client::new("my token".to_owned());
     /// client
     ///     .update_message(Id::new(1), Id::new(2))
-    ///     .content(None)?
+    ///     .content(None)
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -1712,7 +1699,7 @@ impl Client {
         &'a self,
         channel_id: Id<ChannelMarker>,
         topic: &'a str,
-    ) -> Result<CreateStageInstance<'a>, ValidationError> {
+    ) -> CreateStageInstance<'a> {
         CreateStageInstance::new(self, channel_id, topic)
     }
 
@@ -1755,7 +1742,7 @@ impl Client {
         &'a self,
         template_code: &'a str,
         name: &'a str,
-    ) -> Result<CreateGuildFromTemplate<'a>, ValidationError> {
+    ) -> CreateGuildFromTemplate<'a> {
         CreateGuildFromTemplate::new(self, template_code, name)
     }
 
@@ -1774,7 +1761,7 @@ impl Client {
         &'a self,
         guild_id: Id<GuildMarker>,
         name: &'a str,
-    ) -> Result<CreateTemplate<'a>, ValidationError> {
+    ) -> CreateTemplate<'a> {
         CreateTemplate::new(self, guild_id, name)
     }
 
@@ -1881,7 +1868,7 @@ impl Client {
         channel_id: Id<ChannelMarker>,
         name: &'a str,
         kind: ChannelType,
-    ) -> Result<CreateThread<'_>, ChannelValidationError> {
+    ) -> CreateThread<'_> {
         CreateThread::new(self, channel_id, name, kind)
     }
 
@@ -1917,7 +1904,7 @@ impl Client {
         channel_id: Id<ChannelMarker>,
         message_id: Id<MessageMarker>,
         name: &'a str,
-    ) -> Result<CreateThreadFromMessage<'_>, ChannelValidationError> {
+    ) -> CreateThreadFromMessage<'_> {
         CreateThreadFromMessage::new(self, channel_id, message_id, name)
     }
 
@@ -2067,7 +2054,7 @@ impl Client {
     /// # let client = Client::new("my token".to_owned());
     /// let channel_id = Id::new(123);
     ///
-    /// let webhook = client.create_webhook(channel_id, "Twily Bot")?.await?;
+    /// let webhook = client.create_webhook(channel_id, "Twily Bot").await?;
     /// # Ok(()) }
     /// ```
     ///
@@ -2081,7 +2068,7 @@ impl Client {
         &'a self,
         channel_id: Id<ChannelMarker>,
         name: &'a str,
-    ) -> Result<CreateWebhook<'a>, ValidationError> {
+    ) -> CreateWebhook<'a> {
         CreateWebhook::new(self, channel_id, name)
     }
 
@@ -2121,7 +2108,7 @@ impl Client {
     ///
     /// let webhook = client
     ///     .execute_webhook(id, "webhook token")
-    ///     .content("Pinkie...")?
+    ///     .content("Pinkie...")
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -2165,7 +2152,7 @@ impl Client {
     /// let client = Client::new("token".to_owned());
     /// client
     ///     .update_webhook_message(Id::new(1), "token here", Id::new(2))
-    ///     .content(Some("new message content"))?
+    ///     .content(Some("new message content"))
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -2263,8 +2250,8 @@ impl Client {
     ///         channel_id,
     ///         "Garfield Appreciation Hour",
     ///         &garfield_start_time,
-    ///     )?
-    ///     .description("Discuss: How important is Garfield to You?")?
+    ///     )
+    ///     .description("Discuss: How important is Garfield to You?")
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -2288,11 +2275,11 @@ impl Client {
     ///         "Baltimore Convention Center",
     ///         &garfield_con_start_time,
     ///         &garfield_con_end_time,
-    ///     )?
+    ///     )
     ///     .description(
     ///         "In a spiritual successor to BronyCon, Garfield fans from \
     /// around the globe celebrate all things related to the loveable cat.",
-    ///     )?
+    ///     )
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -2481,7 +2468,7 @@ impl Client {
     ///         &"sticker description",
     ///         &"sticker,tags",
     ///         &[23, 23, 23, 23],
-    ///     )?
+    ///     )
     ///     .await?
     ///     .model()
     ///     .await?;
@@ -2508,7 +2495,7 @@ impl Client {
         description: &'a str,
         tags: &'a str,
         file: &'a [u8],
-    ) -> Result<CreateGuildSticker<'_>, StickerValidationError> {
+    ) -> CreateGuildSticker<'_> {
         CreateGuildSticker::new(self, guild_id, name, description, tags, file)
     }
 
@@ -2528,7 +2515,7 @@ impl Client {
     /// let sticker_id = Id::new(2);
     /// let sticker = client
     ///     .update_guild_sticker(guild_id, sticker_id)
-    ///     .description("new description")?
+    ///     .description("new description")
     ///     .await?
     ///     .model()
     ///     .await?;
@@ -2611,7 +2598,7 @@ impl Client {
         let url = format!("{protocol}://{host}/api/v{API_VERSION}/{path}");
         tracing::debug!(?url);
 
-        let mut builder = hyper::Request::builder().method(method.to_http()).uri(&url);
+        let mut builder = hyper::Request::builder().method(method.name()).uri(&url);
 
         if use_authorization_token {
             if let Some(token) = self.token.as_deref() {
@@ -2667,11 +2654,11 @@ impl Client {
         }
 
         let try_req = if let Some(form) = form {
-            builder.body(Body::from(form.build()))
+            builder.body(Full::from(form.build()))
         } else if let Some(bytes) = body {
-            builder.body(Body::from(bytes))
+            builder.body(Full::from(bytes))
         } else {
-            builder.body(Body::empty())
+            builder.body(Full::default())
         };
 
         let inner = self.http.request(try_req.map_err(|source| Error {

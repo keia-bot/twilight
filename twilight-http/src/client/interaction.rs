@@ -21,7 +21,6 @@ use twilight_model::{
         Id,
     },
 };
-use twilight_validate::command::CommandValidationError;
 
 /// Client interface for using interactions.
 ///
@@ -131,7 +130,7 @@ impl<'a> InteractionClient<'a> {
     /// client
     ///     .interaction(application_id)
     ///     .create_followup("webhook token")
-    ///     .content("Pinkie...")?
+    ///     .content("Pinkie...")
     ///     .await?;
     /// # Ok(()) }
     /// ```
@@ -332,7 +331,7 @@ impl<'a> InteractionClient<'a> {
     /// This overwrites the command permissions so the full set of permissions
     /// have to be sent every time.
     ///
-    /// This request requires that the client was configured with an OAuth Bearer
+    /// This request requires that the client was configured with an OAuth2 Bearer
     /// token.
     ///
     /// # Errors
@@ -346,7 +345,7 @@ impl<'a> InteractionClient<'a> {
         guild_id: Id<GuildMarker>,
         command_id: Id<CommandMarker>,
         permissions: &'a [CommandPermission],
-    ) -> Result<UpdateCommandPermissions<'a>, CommandValidationError> {
+    ) -> UpdateCommandPermissions<'a> {
         UpdateCommandPermissions::new(
             self.client,
             self.application_id,

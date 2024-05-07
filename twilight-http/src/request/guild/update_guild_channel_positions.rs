@@ -5,41 +5,15 @@ use crate::{
     response::{marker::EmptyBody, Response, ResponseFuture},
     routing::Route,
 };
-use serde::Serialize;
 use std::future::IntoFuture;
-use twilight_model::id::{
-    marker::{ChannelMarker, GuildMarker},
-    Id,
+use twilight_model::{
+    http::channel_position::Position,
+    id::{marker::GuildMarker, Id},
 };
-
-#[derive(Serialize)]
-pub struct Position {
-    id: Id<ChannelMarker>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    lock_permissions: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    parent_id: Option<Id<ChannelMarker>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    position: Option<u64>,
-}
-
-impl From<(Id<ChannelMarker>, u64)> for Position {
-    fn from((id, position): (Id<ChannelMarker>, u64)) -> Self {
-        Self {
-            id,
-            lock_permissions: None,
-            parent_id: None,
-            position: Some(position),
-        }
-    }
-}
 
 /// Modify the positions of the channels.
 ///
 /// The minimum amount of channels to modify, is a swap between two channels.
-///
-/// This function accepts an `Iterator` of `(Id<ChannelMarker>, u64)`. It also accepts
-/// an `Iterator` of `Position`, which has extra fields.
 #[must_use = "requests must be configured and executed"]
 pub struct UpdateGuildChannelPositions<'a> {
     guild_id: Id<GuildMarker>,
@@ -58,12 +32,6 @@ impl<'a> UpdateGuildChannelPositions<'a> {
             http,
             positions: channel_positions,
         }
-    }
-
-    /// Execute the request, returning a future resolving to a [`Response`].
-    #[deprecated(since = "0.14.0", note = "use `.await` or `into_future` instead")]
-    pub fn exec(self) -> ResponseFuture<EmptyBody> {
-        self.into_future()
     }
 }
 
@@ -84,12 +52,10 @@ impl IntoFuture for UpdateGuildChannelPositions<'_> {
 
 impl TryIntoRequest for UpdateGuildChannelPositions<'_> {
     fn try_into_request(self) -> Result<Request, Error> {
-        let mut request = Request::builder(&Route::UpdateGuildChannels {
+        Request::builder(&Route::UpdateGuildChannels {
             guild_id: self.guild_id.get(),
-        });
-
-        request = request.json(&self.positions)?;
-
-        Ok(request.build())
+        })
+        .json(&self.positions)
+        .build()
     }
 }
