@@ -61,7 +61,7 @@ use twilight_util::permission_calculator::PermissionCalculator;
 /// Refer to the [module level] documentation for more information on how
 /// disabled member communication is calculated.
 ///
-/// [communication has been disabled]: crate::MemberInterface::communication_disabled_until
+/// [communication has been disabled]: crate::model::CachedMember::communication_disabled_until
 /// [module level]: crate::permission
 pub const MEMBER_COMMUNICATION_DISABLED_ALLOWLIST: Permissions = Permissions::from_bits_truncate(
     Permissions::READ_MESSAGE_HISTORY.bits() | Permissions::VIEW_CHANNEL.bits(),
@@ -334,7 +334,7 @@ impl<'a, CacheModels: CacheableModels> InMemoryCachePermissions<'a, CacheModels>
     ///
     /// Defaults to being enabled.
     ///
-    /// [field]: crate::MemberInterface::communication_disabled_until
+    /// [field]: crate::model::CachedMember::communication_disabled_until
     /// [module level]: crate::permission
     pub const fn check_member_communication_disabled(
         mut self,
@@ -394,7 +394,7 @@ impl<'a, CacheModels: CacheableModels> InMemoryCachePermissions<'a, CacheModels>
     /// [`ResourceType::MEMBER`]: crate::ResourceType::MEMBER
     /// [`ResourceType::ROLE`]: crate::ResourceType::ROLE
     /// [`ResourceType`]: crate::ResourceType
-    /// [communication has been disabled]: crate::MemberInterface::communication_disabled_until
+    /// [communication has been disabled]: crate::model::CachedMember::communication_disabled_until
     /// [module level]: crate::permission
     /// [read-only permissions]: MEMBER_COMMUNICATION_DISABLED_ALLOWLIST
     pub fn in_channel(
@@ -484,7 +484,7 @@ impl<'a, CacheModels: CacheableModels> InMemoryCachePermissions<'a, CacheModels>
     /// [`ResourceType::MEMBER`]: crate::ResourceType::MEMBER
     /// [`ResourceType::ROLE`]: crate::ResourceType::ROLE
     /// [`ResourceType`]: crate::ResourceType
-    /// [communication has been disabled]: crate::MemberInterface::communication_disabled_until
+    /// [communication has been disabled]: crate::model::CachedMember::communication_disabled_until
     /// [module level]: crate::permission
     /// [read-only permissions]: MEMBER_COMMUNICATION_DISABLED_ALLOWLIST
     pub fn root(
@@ -923,7 +923,7 @@ mod tests {
         let cache = DefaultInMemoryCache::new();
         let permissions = cache.permissions();
 
-        cache.update(&GuildCreate(base_guild()));
+        cache.update(&GuildCreate::Available(base_guild()));
         cache.update(&MemberAdd {
             guild_id: GUILD_ID,
             member: test::member(USER_ID),
@@ -969,7 +969,7 @@ mod tests {
         let cache = DefaultInMemoryCache::new();
         let permissions = cache.permissions();
 
-        cache.update(&GuildCreate(base_guild()));
+        cache.update(&GuildCreate::Available(base_guild()));
         assert!(matches!(
             permissions.in_channel(USER_ID, CHANNEL_ID).unwrap_err().kind(),
             ChannelErrorType::ChannelUnavailable { channel_id: c_id }
@@ -1030,7 +1030,7 @@ mod tests {
     fn owner() -> Result<(), Box<dyn Error>> {
         let cache = DefaultInMemoryCache::new();
         let permissions = cache.permissions();
-        cache.update(&GuildCreate(base_guild()));
+        cache.update(&GuildCreate::Available(base_guild()));
 
         assert!(permissions.root(OWNER_ID, GUILD_ID)?.is_all());
 
@@ -1088,7 +1088,7 @@ mod tests {
             everyone_permissions,
         )]);
 
-        cache.update(&GuildCreate(guild));
+        cache.update(&GuildCreate::Available(guild));
         let mut member = test::member(USER_ID);
         member.communication_disabled_until = Some(in_future);
         cache.update(&MemberAdd {
