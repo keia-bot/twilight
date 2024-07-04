@@ -272,7 +272,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
                     data = map.next_value()?;
                 }
                 InteractionField::Entitlements => {
-                    if data.is_some() {
+                    if entitlements.is_some() {
                         return Err(DeError::duplicate_field("entitlements"));
                     }
 
