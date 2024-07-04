@@ -272,10 +272,6 @@ impl<'de> Visitor<'de> for InteractionVisitor {
                     data = map.next_value()?;
                 }
                 InteractionField::Entitlements => {
-                    if entitlements.is_some() {
-                        return Err(DeError::duplicate_field("entitlements"));
-                    }
-
                     entitlements = map.next_value()?;
                 }
                 InteractionField::GuildId => {
