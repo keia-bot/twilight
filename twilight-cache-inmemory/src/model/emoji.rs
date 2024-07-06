@@ -1,5 +1,5 @@
 use crate::CacheableEmoji;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use twilight_model::{
     guild::Emoji,
     id::{
@@ -12,7 +12,7 @@ use twilight_model::{
 ///
 /// [`Emoji`]: twilight_model::guild::Emoji
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CachedEmoji {
     pub(crate) animated: bool,
     pub(crate) available: bool,

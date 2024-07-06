@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use twilight_model::{
     application::interaction::InteractionMember,
     gateway::payload::incoming::MemberUpdate,
@@ -41,7 +41,7 @@ impl Deref for ComputedInteractionMember {
 /// Represents a cached [`Member`].
 ///
 /// [`Member`]: twilight_model::guild::Member
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CachedMember {
     pub(crate) avatar: Option<ImageHash>,
     pub(crate) communication_disabled_until: Option<Timestamp>,

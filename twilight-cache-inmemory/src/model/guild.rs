@@ -1,6 +1,6 @@
 use std::slice::Iter;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use twilight_model::{
     gateway::payload::incoming::GuildUpdate,
     guild::{
@@ -19,7 +19,7 @@ use crate::CacheableGuild;
 /// Represents a cached [`Guild`].
 ///
 /// [`Guild`]: twilight_model::guild::Guild
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CachedGuild {
     pub(crate) afk_channel_id: Option<Id<ChannelMarker>>,
     pub(crate) afk_timeout: AfkTimeout,

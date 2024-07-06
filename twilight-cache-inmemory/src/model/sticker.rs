@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use twilight_model::{
     channel::message::{
         sticker::{StickerFormatType, StickerType},
@@ -15,7 +15,7 @@ use crate::CacheableSticker;
 /// Representation of a cached [`Sticker`].
 ///
 /// [`Sticker`]: twilight_model::channel::message::sticker::Sticker
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CachedSticker {
     /// Whether the sticker is available.
     pub(crate) available: bool,
