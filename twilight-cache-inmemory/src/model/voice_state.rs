@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use twilight_model::{
     id::{
         marker::{ChannelMarker, GuildMarker, UserMarker},
@@ -14,7 +14,7 @@ use crate::CacheableVoiceState;
 ///
 /// [`VoiceState`]: twilight_model::voice::VoiceState
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CachedVoiceState {
     channel_id: Id<ChannelMarker>,
     deaf: bool,
