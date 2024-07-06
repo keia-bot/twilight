@@ -122,6 +122,8 @@ pub struct Interaction {
     /// Present when the interaction is invoked in a direct message.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
+    /// Version of the interaction.
+    pub version: i32,
 }
 
 impl Interaction {
@@ -220,6 +222,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
         let mut message: Option<Message> = None;
         let mut token: Option<String> = None;
         let mut user: Option<User> = None;
+        let mut version: i32 = 1;
 
         loop {
             let key = match map.next_key() {
@@ -269,10 +272,6 @@ impl<'de> Visitor<'de> for InteractionVisitor {
                     data = map.next_value()?;
                 }
                 InteractionField::Entitlements => {
-                    if data.is_some() {
-                        return Err(DeError::duplicate_field("entitlements"));
-                    }
-
                     entitlements = map.next_value()?;
                 }
                 InteractionField::GuildId => {
@@ -339,8 +338,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
                     user = map.next_value()?;
                 }
                 InteractionField::Version => {
-                    // Ignoring the version field.
-                    map.next_value::<IgnoredAny>()?;
+                    version = map.next_value()?;
                 }
             }
         }
@@ -403,6 +401,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
             message,
             token,
             user,
+            version
         })
     }
 }
@@ -456,6 +455,7 @@ mod tests {
         let flags = MemberFlags::BYPASSES_VERIFICATION | MemberFlags::DID_REJOIN;
 
         let value = Interaction {
+            version: 1,
             app_permissions: Some(Permissions::SEND_MESSAGES),
             application_id: Id::new(100),
             channel: Some(Channel {
