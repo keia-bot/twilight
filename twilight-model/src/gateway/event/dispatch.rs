@@ -15,9 +15,9 @@ use serde::{
 #[serde(untagged)]
 pub enum DispatchEvent {
     AutoModerationActionExecution(AutoModerationActionExecution),
-    AutoModerationRuleCreate(Box<AutoModerationRuleCreate>),
-    AutoModerationRuleDelete(Box<AutoModerationRuleDelete>),
-    AutoModerationRuleUpdate(Box<AutoModerationRuleUpdate>),
+    AutoModerationRuleCreate(AutoModerationRuleCreate),
+    AutoModerationRuleDelete(AutoModerationRuleDelete),
+    AutoModerationRuleUpdate(AutoModerationRuleUpdate),
     BanAdd(BanAdd),
     BanRemove(BanRemove),
     ChannelCreate(Box<ChannelCreate>),
@@ -53,6 +53,8 @@ pub enum DispatchEvent {
     MessageCreate(Box<MessageCreate>),
     MessageDelete(MessageDelete),
     MessageDeleteBulk(MessageDeleteBulk),
+    MessagePollVoteAdd(MessagePollVoteAdd),
+    MessagePollVoteRemove(MessagePollVoteRemove),
     MessageUpdate(Box<MessageUpdate>),
     PresenceUpdate(Box<PresenceUpdate>),
     ReactionAdd(Box<ReactionAdd>),
@@ -124,6 +126,8 @@ impl DispatchEvent {
             Self::MessageCreate(_) => EventType::MessageCreate,
             Self::MessageDelete(_) => EventType::MessageDelete,
             Self::MessageDeleteBulk(_) => EventType::MessageDeleteBulk,
+            Self::MessagePollVoteAdd(_) => EventType::MessagePollVoteAdd,
+            Self::MessagePollVoteRemove(_) => EventType::MessagePollVoteRemove,
             Self::MessageUpdate(_) => EventType::MessageUpdate,
             Self::PresenceUpdate(_) => EventType::PresenceUpdate,
             Self::ReactionAdd(_) => EventType::ReactionAdd,
@@ -194,6 +198,8 @@ impl TryFrom<Event> for DispatchEvent {
             Event::MessageCreate(v) => Self::MessageCreate(v),
             Event::MessageDelete(v) => Self::MessageDelete(v),
             Event::MessageDeleteBulk(v) => Self::MessageDeleteBulk(v),
+            Event::MessagePollVoteAdd(v) => Self::MessagePollVoteAdd(v),
+            Event::MessagePollVoteRemove(v) => Self::MessagePollVoteRemove(v),
             Event::MessageUpdate(v) => Self::MessageUpdate(v),
             Event::PresenceUpdate(v) => Self::PresenceUpdate(v),
             Event::ReactionAdd(v) => Self::ReactionAdd(v),
@@ -248,15 +254,15 @@ impl<'de, 'a> DeserializeSeed<'de> for DispatchEventWithTypeDeserializer<'a> {
             "AUTO_MODERATION_ACTION_EXECUTION" => DispatchEvent::AutoModerationActionExecution(
                 AutoModerationActionExecution::deserialize(deserializer)?,
             ),
-            "AUTO_MODERATION_RULE_CREATE" => DispatchEvent::AutoModerationRuleCreate(Box::new(
+            "AUTO_MODERATION_RULE_CREATE" => DispatchEvent::AutoModerationRuleCreate(
                 AutoModerationRuleCreate::deserialize(deserializer)?,
-            )),
-            "AUTO_MODERATION_RULE_DELETE" => DispatchEvent::AutoModerationRuleDelete(Box::new(
+            ),
+            "AUTO_MODERATION_RULE_DELETE" => DispatchEvent::AutoModerationRuleDelete(
                 AutoModerationRuleDelete::deserialize(deserializer)?,
-            )),
-            "AUTO_MODERATION_RULE_UPDATE" => DispatchEvent::AutoModerationRuleUpdate(Box::new(
+            ),
+            "AUTO_MODERATION_RULE_UPDATE" => DispatchEvent::AutoModerationRuleUpdate(
                 AutoModerationRuleUpdate::deserialize(deserializer)?,
-            )),
+            ),
             "CHANNEL_CREATE" => {
                 DispatchEvent::ChannelCreate(Box::new(ChannelCreate::deserialize(deserializer)?))
             }
@@ -371,6 +377,12 @@ impl<'de, 'a> DeserializeSeed<'de> for DispatchEventWithTypeDeserializer<'a> {
             "MESSAGE_REACTION_REMOVE_ALL" => {
                 DispatchEvent::ReactionRemoveAll(ReactionRemoveAll::deserialize(deserializer)?)
             }
+            "MESSAGE_POLL_VOTE_ADD" => {
+                DispatchEvent::MessagePollVoteAdd(MessagePollVoteAdd::deserialize(deserializer)?)
+            }
+            "MESSAGE_POLL_VOTE_REMOVE" => DispatchEvent::MessagePollVoteRemove(
+                MessagePollVoteRemove::deserialize(deserializer)?,
+            ),
             "MESSAGE_UPDATE" => {
                 DispatchEvent::MessageUpdate(Box::new(MessageUpdate::deserialize(deserializer)?))
             }

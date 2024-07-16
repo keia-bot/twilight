@@ -212,7 +212,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
         let mut channel: Option<Channel> = None;
         let mut channel_id: Option<Id<ChannelMarker>> = None;
         let mut data: Option<Value> = None;
-        let mut entitlements: Vec<Entitlement> = Vec::new();
+        let mut entitlements: Option<Vec<Entitlement>> = None;
         let mut guild_id: Option<Id<GuildMarker>> = None;
         let mut guild_locale: Option<String> = None;
         let mut id: Option<Id<InteractionMarker>> = None;
@@ -272,6 +272,10 @@ impl<'de> Visitor<'de> for InteractionVisitor {
                     data = map.next_value()?;
                 }
                 InteractionField::Entitlements => {
+                    if entitlements.is_some() {
+                        return Err(DeError::duplicate_field("entitlements"));
+                    }
+
                     entitlements = map.next_value()?;
                 }
                 InteractionField::GuildId => {
@@ -385,6 +389,8 @@ impl<'de> Visitor<'de> for InteractionVisitor {
             }
         };
 
+        let entitlements = entitlements.unwrap_or_default();
+
         Ok(Self::Value {
             app_permissions,
             application_id,
@@ -401,7 +407,7 @@ impl<'de> Visitor<'de> for InteractionVisitor {
             message,
             token,
             user,
-            version
+            version,
         })
     }
 }
@@ -531,6 +537,7 @@ mod tests {
                             accent_color: None,
                             avatar: Some(image_hash::AVATAR),
                             avatar_decoration: None,
+                            avatar_decoration_data: None,
                             banner: None,
                             bot: false,
                             discriminator: 1111,
@@ -583,6 +590,7 @@ mod tests {
                     accent_color: None,
                     avatar: Some(image_hash::AVATAR),
                     avatar_decoration: None,
+                    avatar_decoration_data: None,
                     banner: None,
                     bot: false,
                     discriminator: 1111,
@@ -701,7 +709,7 @@ mod tests {
                 Token::Str("600"),
                 Token::Struct {
                     name: "User",
-                    len: 9,
+                    len: 10,
                 },
                 Token::Str("accent_color"),
                 Token::None,
@@ -709,6 +717,8 @@ mod tests {
                 Token::Some,
                 Token::Str(image_hash::AVATAR_INPUT),
                 Token::Str("avatar_decoration"),
+                Token::None,
+                Token::Str("avatar_decoration_data"),
                 Token::None,
                 Token::Str("banner"),
                 Token::None,
@@ -804,7 +814,7 @@ mod tests {
                 Token::Some,
                 Token::Struct {
                     name: "User",
-                    len: 9,
+                    len: 10,
                 },
                 Token::Str("accent_color"),
                 Token::None,
@@ -812,6 +822,8 @@ mod tests {
                 Token::Some,
                 Token::Str(image_hash::AVATAR_INPUT),
                 Token::Str("avatar_decoration"),
+                Token::None,
+                Token::Str("avatar_decoration_data"),
                 Token::None,
                 Token::Str("banner"),
                 Token::None,
